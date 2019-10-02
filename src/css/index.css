@@ -6,7 +6,9 @@ li {
 }
 body {
     height: auto;
+    /*overflow-x: ;*/
 }
 .yellow {
     color: #e7e700;
 }
+

@@ -3,11 +3,17 @@
         <div class="newslist-root" v-if="previewflag" ref="newslist">
             <!--返回-->
             <div class="goback">
-                <span class="mui-icon mui-icon-back" @click="goback"></span>
-                <span class="el-icon-more"></span>
+                <!--<span class="mui-icon mui-icon-back" @click="goback"></span>
+                <span class="el-icon-more"></span>-->
+                <van-nav-bar
+                        left-text="返回"
+                        right-text="按钮"
+                        left-arrow
+                        @click-left="onClickLeft"
+                />
             </div>
             <!--新闻详情模块-->
-            <div class="newsinfo-container">
+            <div class="newsinfo-container" v-height>
                 <!--标题-->
                 <div class="info-title" style="transform: none">
                     {{infodata.title}}
@@ -39,42 +45,12 @@
             <div class="info-comment">
 
             </div>
-            <!--底部固定框-->
-            <div class="reply-fixed" ref="reply">
-
-                <div class="send-message">
-                    <label for="send" class="mui-icon mui-icon-compose">
-                        <input type="del" placeholder="发表你的神评论" id="send">
-                    </label>
-                </div>
-                <div class="chatbox">
-                    <!--                <span class="mui-badge">9</span>-->
-                    <span class="mui-icon mui-icon-chatbubble"></span>
-                    <span class="mui-badge mui-badge-danger">{{infodata.reply_count=='0'?'抢沙发':infodata.reply_count}}</span>
-                    <span :class="{'mui-icon mui-icon-star':true,'yellow':collectionflag}"
-                          @click="collectionflag=!collectionflag"></span>
-                    <span class="mui-icon mui-icon-redo"></span>
-                </div>
-
-            </div>
-        </div>
-        <!--缩略图组件-->
-        <!--        <preview v-else="previewflag" :imgarr="imgarr" @close="closepreview" :cur="curclicksrc"></preview>-->
-        <div class="preview-container" v-if="!previewflag" ref="preview">
-            <div class="close" @click="closepreview">X</div>
-            <div class="swiper-container">
-                <div class="swiper-wrapper" style="display: flex;flex-direction: row;align-items: center">
-                    <div class="swiper-slide" v-for="(item,i) in imgarr" :key="i"><img :src="imgarr[i]" alt="">
-                    </div>
-                </div>
-                <!-- 如果需要分页器 -->
-                <div class="swiper-pagination"></div>
-            </div>
         </div>
     </div>
 </template>
 <script>
-    import Swiper from 'swiper'
+    import {ImagePreview} from 'vant';
+    import Asynchronous from '@/api/asyc'
 
     export default {
         name: 'newsInfo',
@@ -94,35 +70,28 @@
             this.getNewsInfo(this.id, () => {
                 this.awesomeflag = true
             })
-            this.getPosition()
+        },
+        mounted() {
+            this.getscroll()
         },
         updated() {
             this.getPreview()
-            this.getImgaddress()
-            document.documentElement.scrollTop = this.scrolltop
         },
-        mounted() {
-
-            this.getscroll()
-        },
-
         methods: {
             getNewsInfo(aid, callback) {
-                this.$.ajax({
-                    url: 'http://api.dagoogle.cn/news/ndetail',
-                    dataType: 'jsonp',
-                    data: {
-                        aid: aid
+                Asynchronous({
+                    url: '/ndetail',
+                    params: {
+                        aid,
                     }
                 }).then((ret) => {
                     if (ret.code == '200') {
                         callback && callback(ret.data)
                         this.infodata = ret.data
                     }
-                    //console.log(ret)
-                }).catch((err) => {
-                    console.log(err)
-                })
+                }, ((err) => {
+                    console.error('加载失败')
+                }))
             },
             awesome(e) {
                 if (e.target.style.color == 'red') {
@@ -131,33 +100,30 @@
                 e.target.style.color = 'red'
                 this.infodata.click_count++
             },
-            goback() {
-                this.$router.go(-1)
+            onClickLeft() {
+                this.$router.back()
             },
             getPreview() {
                 const $this = this
-                this.$('.newsinfo-container img').click(function (e) {
-                    this.curclicksrc = $this.$(this)[0].src
-                    $this.imgarr.forEach((item, i) => {
-                        if (item == this.curclicksrc) {
-                            $this.imgarr.unshift(item)
-                            $this.imgarr.splice(i, 1)
+                $('.newsinfo-container img').each((i, item) => {
+                    $this.imgarr.push(item.src)
+                })
+                $('.newsinfo-container img').click(function (e) {
+                    let index = 0
+                    $this.imgarr.some((item, i) => {
+                        if (item == $(this)[0].src) {
+                            index = i
                         }
                     })
-                    $this.previewflag = false
+                    ImagePreview({
+                        images: $this.imgarr,
+                        startPosition: index,
+                        onClose() {
+                            // do something
+                        }
+                    });
                     return false
                 })
-            },
-            getImgaddress() {
-                this.$('.newsinfo-container img').each((i, item) => {
-                    this.imgarr.push(item.src)
-                })
-            },
-            closepreview() {
-                this.previewflag = true
-            },
-            getPosition() {
-
             },
             getscroll() {
                 if (!this.$refs.preview) {
@@ -167,19 +133,35 @@
                             return
                         }
                         this.scrolltop = wscr
-                        console.log(this.scrolltop)
                     }
                 }
 
-            }
+            },
         },
-        activated() {
-
+        directives: {
+            'height': {
+                bind(el, binding) {
+                    el.style.height = (document.documentElement.clientHeight - 50) + 'px'
+                }
+            }
         },
         components: {}
     }
 </script>
 <style lang="less">
+    .goback-to {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+    }
+
+    .root {
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        opacity: 0.999;
+    }
 
     .swiper-slide-duplicate {
         display: none;
@@ -241,33 +223,6 @@
         margin-bottom: 80px;
     }
 
-    .goback {
-        line-height: 50px;
-        position: fixed;
-        height: 50px;
-        top: 0;
-        left: 0;
-        width: 100%;
-        background-color: #fff;
-
-        .el-icon-more {
-            float: right;
-            margin-top: 15px;
-            margin-right: 20px;
-            font-size: 22px;
-        }
-
-        .mui-icon-back {
-            float: left;
-        }
-
-        span {
-            color: #4a65c9;
-            margin-top: 12px;
-            margin-left: 10px;
-            font-size: 30px;
-        }
-    }
 
     .goback:hover span {
         color: #4d62c4;
@@ -276,9 +231,16 @@
 
     .newsinfo-container {
         color: #3a3a3a;
-        padding: 10px;
+        padding: 0 10px;
+        padding-top: 15px;
         text-align: left;
-        margin-top: 50px;
+        padding-top: 0px;
+        overflow: scroll;
+
+        .awesome-info {
+            padding-bottom: 70px;
+        }
+
 
         .pub_time {
             font-size: 12px;
@@ -302,7 +264,7 @@
             text-align: left;
             font-size: 15px;
             letter-spacing: 2px;
-            margin: 10px 0;
+            margin: 15px 0 10px 0;
             font-family: '微软雅黑';
             font-weight: 700;
         }
@@ -379,63 +341,6 @@
         }
     }
 
-    .reply-fixed {
-        position: fixed;
-        width: 100%;
-        height: 50px;
-        bottom: 0;
-        background-color: #fff;
-        border-top: 0.5px solid rgba(118, 106, 111, 0.37);
-        line-height: 50px;
-        text-align: left;
-        transition: all 0.6s ease;
-        display: flex;
-        justify-content: start;
-        flex-direction: row;
-        align-items: center;
-
-        .send-message {
-            label {
-                margin-left: 15px;
-            }
-
-            input {
-                border: none;
-                border: 1px solid rgba(204, 204, 204, 0.72);
-                margin-left: 10px;
-                padding-left: 10px;
-                font-size: 12px;
-                width: 160px;
-                min-height: 25px;
-                max-height: 60px;
-                border-radius: 3px;
-                height: auto;
-            }
-        }
-
-        .chatbox {
-            position: absolute;
-            top: 3px;
-            right: -5px;
-
-            .mui-badge {
-                font-size: 12px;
-                padding: 2px 4px;
-                position: absolute;
-                top: 8px;
-                left: 14px;
-            }
-
-            .mui-icon-star {
-                margin-left: 7px;
-            }
-
-            span {
-                margin-right: 25px;
-            }
-        }
-
-    }
 
     .awesome {
         span:nth-of-type(1) {
