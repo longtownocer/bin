@@ -1,6 +1,5 @@
-# mydemo
+# mydemosforNews
 
-> A Vue.js project
 ####新闻资讯精简版
 
 >由于接口不完整,暂且完成精简版
